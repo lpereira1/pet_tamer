@@ -57,11 +57,6 @@ variable "controller_account_id" {
   type        = string
 }
 
-variable "target_account_ids" {
-  description = "List of target AWS account IDs."
-  type        = list(string)
-}
-
 variable "servicegroups" {
     description = "A list of the service groups that are being managed. This is used to build ssm paramaters"
     type = list(string)
