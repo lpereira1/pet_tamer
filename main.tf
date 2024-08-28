@@ -20,9 +20,10 @@ output "lambda_arn" {
 
 #Deploys ssm parameters for each service group that created
 module "ssm_paramater_store" {
-  for_each = toset(var.servicegroups)
+  for_each = var.servicegroups
   source = "./modules/ssm-parameters"
-  servicegroup = each.value
+  servicegroup = each.key
+  minimum_servers = each.value.minimum_servers
 }
 
 

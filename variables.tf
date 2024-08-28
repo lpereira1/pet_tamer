@@ -8,7 +8,6 @@ variable "controller_account" {
 
 variable "servicegroups" {
     description = "A list of the service groups that are being managed. This is used to build ssm paramaters"
-    type = list(string)
     
 }
 
