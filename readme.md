@@ -62,13 +62,10 @@ variable "target_account_ids" {
   type        = list(string)
 }
 
-variable "service_group_min_count" {
-  description = "Minimum number of servers that should always be running in each service group."
-  type        = map(number)
-  default     = {
-    "web-servers" = 2,
-    "app-servers" = 1
-  }
+variable "servicegroups" {
+    description = "A list of the service groups that are being managed. This is used to build ssm paramaters"
+    type = list(string)
+    
 }
 ```
 
