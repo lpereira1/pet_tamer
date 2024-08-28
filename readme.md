@@ -2,120 +2,132 @@
 
 [![Terraform](https://img.shields.io/badge/Terraform-0.12+-623CE4?style=for-the-badge&logo=terraform)](https://www.terraform.io/)
 [![Python](https://img.shields.io/badge/Python-3.8+-3776AB?style=for-the-badge&logo=python)](https://www.python.org/)
-
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge&logo=MIT)](https://opensource.org/licenses/MIT)
 ## Overview
 
-The **Pet Tamer** project is an infrastructure-as-code solution that manages EC2 instances across multiple AWS accounts based on specific tags and parameters. It utilizes Terraform to deploy IAM roles, API Gateway, Lambda functions, and SSM parameters that work together to automate the management of EC2 instances.
+The **Pet Tamer** project is an infrastructure-as-code solution designed to manage EC2 instances across multiple AWS accounts based on specific tags and parameters. Unlike traditional auto-scaling groups, this project is tailored for "Pet" servers—machines that should never be terminated but can be turned off or on based on external triggers. This setup is ideal for scenarios where you need to control server power states using external metrics or alerts.
+
+### Key Features
+
+- **Minimum Server Count**: Ability to set a minimum number of servers that should always remain active in a service group, ensuring critical operations are always supported.
+- **Flexible Server Management**: The API call can request to power on or off any number of servers within the group, allowing for precise scaling based on real-time needs.
+- **Multi-Account Deployment**: Supports managing EC2 instances across multiple AWS accounts, with a central controller account assuming roles in target accounts.
+- **API-Driven Control**: External systems (e.g., monitoring tools, APMs) can trigger server management actions via API Gateway, making the system highly responsive to changes in workload or performance metrics.
+
 
 ## Project Structure
 
-```
-pet_tamer/
-│
-├── provider.tf
-├── main.tf
-├── api_gateway.tf
-├── variables.tf
-├── modules/
-│   ├── target-role/
-│   │   ├── target_roles.tf
-│   │   └── variables.tf
-│   ├── ssm-parameters/
-│   │   ├── ssm_parameters.tf
-│   │   └── variables.tf
-│   └── controller-role/
-│       ├── controller-roles.tf
-│       └── variables.tf
-└── files/
-    └── pets.py
-```
+Here's an overview of the project's structure:
 
-### **File and Directory Descriptions**
-
-- **`provider.tf`**: Configures the AWS provider for the Terraform project, including the AWS region.
-- **`main.tf`**: The primary Terraform configuration file that orchestrates the deployment of resources, including the invocation of modules.
-- **`api_gateway.tf`**: Defines the API Gateway that triggers the Lambda function, allowing external requests to manage EC2 instances.
-- **`variables.tf`**: Contains variables used throughout the Terraform project, such as AWS region, controller account ID, and service groups.
-- **`modules/`**:
-  - **`target-role/`**: Manages IAM roles in target accounts that the controller account's Lambda function can assume to manage EC2 instances.
-    - **`target_roles.tf`**: Defines the IAM roles and policies for target accounts.
-    - **`variables.tf`**: Variables specific to the target roles module.
-  - **`ssm-parameters/`**: Creates and manages SSM parameters used by the Lambda function to control EC2 instance behavior.
-    - **`ssm_parameters.tf`**: Defines the SSM parameters.
-    - **`variables.tf`**: Variables specific to the SSM parameters module.
-  - **`controller-role/`**: Manages the IAM role in the controller account that the Lambda function assumes to manage target accounts.
-    - **`controller-roles.tf`**: Defines the IAM roles and policies for the controller account.
-    - **`variables.tf`**: Variables specific to the controller roles module.
-- **`files/`**:
-  - **`pets.py`**: The Lambda function script that manages EC2 instances based on incoming requests from the API Gateway.
-
-## Prerequisites
-
-Before you begin, ensure you have the following installed:
-
-- Terraform (version 0.12 or later)
-- AWS CLI configured with the necessary permissions to deploy resources
+| Directory/File                | Description                                                                 |
+| ----------------------------- | --------------------------------------------------------------------------- |
+| `provider.tf`                 | Configures the AWS provider for the Terraform project.                      |
+| `main.tf`                     | Orchestrates the deployment of resources, including the invocation of modules. |
+| `variables.tf`                | Contains variables used throughout the Terraform project.                   |
+| `modules/api-gateway/`        | Manages the API Gateway to handle external requests.                        |
+| `modules/controller-role/`    | Manages IAM roles for the controller account.                               |
+| `modules/lambda/`             | Contains the Lambda function code and configuration.                        |
+| `modules/ssm-parameters/`     | Manages SSM parameters used to control EC2 instances.                       |
+| `modules/target-role/`        | Manages IAM roles in target accounts.                                        |
+| `files/pet_tamer.py`          | Python script used within the project.                                       |
 
 ## Setup Instructions
 
-1. **Clone the Repository**
+### 1. Clone the Repository
 
-   Clone this repository to your local machine:
+Clone the project repository to your local machine:
 
-   ```bash
-   git clone https://github.com/yourusername/pet-tamer.git
-   cd pet-tamer
-   ```
+```bash
+git clone https://github.com/your-repo/pet_tamer.git
+cd pet_tamer
+```
 
-2. **Initialize Terraform**
+### 2. Configure Variables
 
-   Initialize the Terraform project to download required providers:
+Update the `variables.tf` file with your specific AWS account IDs, regions, service groups, and minimum server counts:
 
-   ```bash
-   terraform init
-   ```
+```hcl
+variable "aws_region" {
+  description = "The AWS region to deploy resources in."
+  default     = "us-west-2"
+}
 
-3. **Configure Variables**
+variable "controller_account_id" {
+  description = "The AWS account ID for the controller."
+  type        = string
+}
 
-   Modify the `variables.tf` file to set your AWS region, controller account ID, and service groups:
+variable "target_account_ids" {
+  description = "List of target AWS account IDs."
+  type        = list(string)
+}
 
-   ```hcl
-   variable "region" {
-     description = "The AWS region where the infrastructure will be deployed."
-     type        = string
-   }
+variable "service_group_min_count" {
+  description = "Minimum number of servers that should always be running in each service group."
+  type        = map(number)
+  default     = {
+    "web-servers" = 2,
+    "app-servers" = 1
+  }
+}
+```
 
-   variable "controller_account" {
-     description = "The AWS account ID of the controller account."
-     type        = string
-   }
+### 3. Initialize Terraform
 
-   variable "servicegroups" {
-     description = "List of service groups being managed."
-     type        = list(string)
-   }
-   ```
+Initialize the Terraform project to download necessary providers and modules:
 
-4. **Deploy the Infrastructure**
+```bash
+terraform init
+```
 
-   Run the following command to deploy the infrastructure:
+### 4. Deploy the Infrastructure
 
-   ```bash
-   terraform apply
-   ```
+Deploy the infrastructure using Terraform:
 
-   Review the changes and confirm to apply.
+```bash
+terraform apply
+```
 
-5. **Invoke the Lambda Function**
+Review the proposed changes and confirm to apply.
 
-   Use the API Gateway endpoint to manage EC2 instances by making HTTP requests. Ensure the requests include the necessary parameters and tags.
+### 5. Test Locally (Optional)
+
+If you want to test the setup locally, you can simulate API requests using `curl` or Postman.
+
+## Usage Examples
+
+### Controlling EC2 Instances
+
+Use the API Gateway endpoint to manage EC2 instances by making HTTP POST requests. Below are some examples:
+
+- **Start a Specific Number of Instances in a Service Group:**
+
+  ```bash
+  curl -X POST https://your-api-endpoint.amazonaws.com/dev/start \
+  -d '{"service_group": "web-servers", "action": "start", "count": 3}'
+  ```
+
+  > This request will attempt to start 3 instances in the "web-servers" group, adhering to the minimum count.
+
+- **Stop a Specific Number of Instances in a Service Group:**
+
+  ```bash
+  curl -X POST https://your-api-endpoint.amazonaws.com/dev/stop \
+  -d '{"service_group": "app-servers", "action": "stop", "count": 1}'
+  ```
+
+  > This request will attempt to stop 1 instance in the "app-servers" group, ensuring that the minimum count is maintained.
+
+- **Ensure Minimum Servers Are Running:**
+
+  The system automatically ensures that the minimum number of servers defined in `service_group_min_count` is always running, even after stop requests.
 
 ## How It Works
 
-- **IAM Roles**: The project sets up IAM roles in both the controller and target accounts. The controller role allows the Lambda function to assume roles in target accounts and manage EC2 instances.
-- **SSM Parameters**: SSM parameters are used to store configuration values, such as minimum server counts for service groups.
-- **Lambda Function**: The Lambda function, triggered by API Gateway, manages EC2 instances by assuming roles in target accounts and executing actions like starting, stopping, or describing instances.
-- **API Gateway**: The API Gateway provides an external endpoint to trigger the Lambda function, enabling automated and remote management of EC2 instances.
+- **IAM Roles**: Sets up IAM roles in both the controller and target accounts, allowing the Lambda function to assume roles in target accounts and manage EC2 instances.
+- **SSM Parameters**: Uses SSM parameters to store configuration values like minimum server counts for service groups.
+- **Lambda Function**: Triggered by API Gateway, the Lambda function manages EC2 instances by assuming roles in target accounts and executing actions.
+- **API Gateway**: Provides an external endpoint to trigger the Lambda function, enabling automated and remote management of EC2 instances.
 
 ## Security Considerations
 
@@ -131,7 +143,7 @@ Before you begin, ensure you have the following installed:
 
 ## Contributions
 
-Contributions to this project are welcome. Please submit issues and pull requests to improve the project.
+Contributions to this project are welcome! Please submit issues and pull requests to improve the project.
 
 ## License
 
